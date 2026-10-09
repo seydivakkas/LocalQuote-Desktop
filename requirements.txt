@@ -1,0 +1,2 @@
+# Runtime dependency; install on the build machine, not on customer PC.
+reportlab==4.4.9

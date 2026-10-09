@@ -1,0 +1,6 @@
+Component,Role,Version/Constraint,SPDX,Upstream,Packaging status
+Python,Language runtime,>=3.10,PSF-2.0,https://www.python.org/psf/license/,packaged by PyInstaller later
+ReportLab,Unicode PDF,4.4.9,BSD-3-Clause,https://github.com/MrBitBucket/reportlab-mirror,third-party notices and transitive licenses required
+SQLite,Local DB,bundled with CPython,blessing,https://www.sqlite.org/copyright.html,part of Python distribution
+Tkinter/Tcl/Tk,Desktop GUI,bundled with CPython,TCL,https://www.tcl.tk/software/tcltk/license.html,Windows PyInstaller bundling audit pending
+PyInstaller,EXE build tool,>=6,<7,GPL-2.0-or-later WITH Bootloader-exception,https://pyinstaller.org/en/stable/license.html,build-only; audit binary notices

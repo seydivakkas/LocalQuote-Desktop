@@ -1,0 +1,31 @@
+test_decimal_precision (test_core.MoneyTests.test_decimal_precision) ... ok
+test_discount_before_vat (test_core.MoneyTests.test_discount_before_vat) ... ok
+test_locale (test_core.MoneyTests.test_locale) ... ok
+test_missing_description (test_core.MoneyTests.test_missing_description) ... ok
+test_mixed_vat (test_core.MoneyTests.test_mixed_vat) ... ok
+test_over_100_percent (test_core.MoneyTests.test_over_100_percent) ... ok
+test_reject_negative_nan_and_float (test_core.MoneyTests.test_reject_negative_nan_and_float) ... ok
+test_round_half_up (test_core.MoneyTests.test_round_half_up) ... ok
+test_approve_transition_and_mutation_lock (test_core.StorageTests.test_approve_transition_and_mutation_lock) ... ok
+test_backup_restore (test_core.StorageTests.test_backup_restore) ... ok
+test_bad_schema_rejected_without_overwriting (test_core.StorageTests.test_bad_schema_rejected_without_overwriting) ... ok
+test_corrupt_backup_refused (test_core.StorageTests.test_corrupt_backup_refused) ... ok
+test_csv_injection (test_core.StorageTests.test_csv_injection) ... ok
+test_customer_crud_and_archive (test_core.StorageTests.test_customer_crud_and_archive) ... ok
+test_empty_quote_not_approved (test_core.StorageTests.test_empty_quote_not_approved) ... ok
+test_fk_enabled (test_core.StorageTests.test_fk_enabled) ... ok
+test_invalid_due_date (test_core.StorageTests.test_invalid_due_date) ... ok
+test_literal_wildcard_search (test_core.StorageTests.test_literal_wildcard_search) ... ok
+test_old_schema_is_rejected (test_core.StorageTests.test_old_schema_is_rejected) ... ok
+test_only_own_request (test_core.StorageTests.test_only_own_request) ... ok
+test_pdf_draft_refused (test_core.StorageTests.test_pdf_draft_refused) ... ok
+test_pdf_pagination (test_core.StorageTests.test_pdf_pagination) ... ok
+test_pdf_unicode_text (test_core.StorageTests.test_pdf_unicode_text) ... ok
+test_snapshot_unaffected_by_catalog_edit (test_core.StorageTests.test_snapshot_unaffected_by_catalog_edit) ... ok
+test_sql_injection (test_core.StorageTests.test_sql_injection) ... ok
+test_no_socket_calls (test_offline.OfflineTest.test_no_socket_calls) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.465s
+
+OK

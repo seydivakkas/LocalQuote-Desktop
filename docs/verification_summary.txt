@@ -1,0 +1,6 @@
+LocalQuote P0 verification
+UTC 2026-10-09T20:21:06Z
+Python 3.13.5
+Linux headless tests: 26/26 PASS
+Windows/PyInstaller/real-client release: HOLD
+GUI Linux virtual display smoke: PASS

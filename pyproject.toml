@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "localquote-desktop"
+version = "0.1.0.dev0"
+description = "Offline-first proposal and pricing desktop application for Turkish agencies"
+requires-python = ">=3.10"
+dependencies = ["reportlab==4.4.9"]
+
+[project.scripts]
+localquote = "localquote.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

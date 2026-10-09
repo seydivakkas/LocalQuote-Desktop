@@ -1,0 +1,46 @@
+name: Tests and Windows preview build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    name: Core tests (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: python -m pip install -e .
+      - name: Unit + integration + offline suite
+        run: python -m unittest discover -s tests -v
+      - name: Smoke without GUI
+        run: python -m localquote --smoke --db localquote-ci-temp.sqlite3
+
+  windows-preview:
+    name: Windows EXE build (not a release)
+    runs-on: windows-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build
+        shell: pwsh
+        run: .\packaging\build_windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalQuote-Desktop-Windows-preview
+          path: dist/LocalQuote-Desktop/
+          retention-days: 7
