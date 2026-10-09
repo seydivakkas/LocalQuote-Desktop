@@ -39,6 +39,15 @@ jobs:
       - name: Build
         shell: pwsh
         run: .\packaging\build_windows.ps1
+      - name: Windows packaged PDF and backup validation
+        shell: pwsh
+        run: |
+          py -3 packaging/windows_ci_probe.py dist/LocalQuote-Desktop/LocalQuote-Desktop.exe docs/windows-ci-proof.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalQuote-Windows-CI-Evidence
+          path: docs/windows-ci-proof.json
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: LocalQuote-Desktop-Windows-preview
