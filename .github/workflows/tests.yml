@@ -39,6 +39,8 @@ jobs:
       - name: Build
         shell: pwsh
         run: .\packaging\build_windows.ps1
+      - name: Install CI-only PDF verification tool
+        run: py -3 -m pip install 'pypdf==5.9.0'
       - name: Windows packaged PDF and backup validation
         shell: pwsh
         run: |
