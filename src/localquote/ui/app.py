@@ -254,7 +254,7 @@ class LocalQuoteApp(tk.Tk):
         for title,fn in [
           ("Satır Ekle",self.quote_line_add),("Seçili Satırı Sil",self.quote_line_remove),
           ("Teklifi Onayla",self.quote_approve),("Onaylı PDF",self.quote_pdf),
-          ("CSV Dışa Aktar",self.quote_csv),("Veritabanı Yedeği",self.quote_backup)]:
+          ("CSV Dışa Aktar",self.quote_csv),("Veritabanı Yedeği",self.quote_backup),("Sürüm Geçmişi",self.quote_history)]:
             ttk.Button(buttons,text=title,command=lambda f=fn:self.action(f)).pack(side="left",padx=3)
         self.lines=self.tree(parent,("id","description","quantity","price","discount","vat"),
            ("ID","Açıklama","Miktar","Fiyat TL","İnd.%","KDV%"),height=6)
@@ -275,6 +275,7 @@ class LocalQuoteApp(tk.Tk):
         selection=self.quotes.selection()
         if not selection:return
         detail=service.quote_detail(self.conn,int(selection[0]))
+        self.q_note.delete(0,"end");self.q_note.insert(0,detail["quote"]["note"])
         for row in detail["lines"]:
             self.lines.insert("", "end", iid=str(row["id"]),values=(row["id"],row["description"][:95],
                 row["quantity"],money(row["unit_price_cents"]),row["discount_percent"],row["vat_percent"]))
@@ -291,6 +292,23 @@ class LocalQuoteApp(tk.Tk):
         svc_id=self.combo_id(self.q_service) if self.q_service.get() else None
         service.add_line(self.conn,self.quote_id(),svc_id,**{k:v.get() for k,v in self.q_fields.items()})
         self.quote_select()
+
+    def quote_note_update(self):
+        service.update_quote_note(self.conn,self.quote_id(),self.q_note.get())
+        self.quote_select()
+
+    def quote_package_add(self):
+        service.add_package_to_quote(self.conn,self.quote_id(),self.combo_id(self.q_package))
+        self.quote_select()
+
+    def quote_history(self):
+        win=tk.Toplevel(self);win.title("Sürüm Geçmişi — Salt Okunur");win.geometry("690x400")
+        view=tk.Text(win,wrap="word");view.pack(fill="both",expand=True)
+        for rev in service.quote_history(self.conn,self.quote_id()):
+            snapshot=json.loads(rev["snapshot_json"])
+            total=snapshot.get("totals",{}).get("total_cents","v1 baseline")
+            view.insert("end","Sürüm "+str(rev["version"])+": "+rev["event"]+"; toplam kuruş: "+str(total)+"\n")
+        view.configure(state="disabled")
 
     def quote_line_remove(self):
         selection=self.lines.selection()
@@ -330,6 +348,13 @@ class LocalQuoteApp(tk.Tk):
         self.refresh_customers()
         for item in self.services.get_children(): self.services.delete(item)
         svcs=service.list_services(self.conn)
+        for item in self.packages.get_children(): self.packages.delete(item)
+        pkgs=service.list_service_packages(self.conn)
+        for pkg in pkgs:
+            data=service.package_detail(self.conn,pkg["id"])
+            items=", ".join(str(x["name"])+ " x "+str(x["quantity"]) for x in data["items"])
+            self.packages.insert("","end",iid=str(pkg["id"]),values=(pkg["id"],pkg["name"],items))
+        self.q_package["values"]=[str(pkg["id"])+" • "+pkg["name"] for pkg in pkgs]
         for row in svcs:self.services.insert("","end",iid=str(row["id"]),values=(row["id"],row["name"],row["unit"],money(row["unit_price_cents"]),row["vat_percent"]))
         cust=service.list_customers(self.conn)
         self.r_customer["values"]=[f"{r['id']} • {r['name']}" for r in cust]
