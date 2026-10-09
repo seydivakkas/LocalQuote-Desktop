@@ -191,8 +191,11 @@ class LocalQuoteApp(tk.Tk):
         self.r_text=tk.Text(form,height=5,width=65,wrap="word")
         self.r_text.grid(row=2,column=1,sticky="ew",padx=8,pady=4)
         form.columnconfigure(1,weight=1)
-        ttk.Button(form,text="Talebi Kaydet",command=lambda:self.action(self.request_add)).grid(row=3,column=1,sticky="e",padx=8,pady=4)
+        buttons=ttk.Frame(form);buttons.grid(row=3,column=1,sticky="e",padx=8,pady=4)
+        ttk.Button(buttons,text="Talep Ekle",command=lambda:self.action(self.request_add)).pack(side="left",padx=4)
+        ttk.Button(buttons,text="Seçileni Güncelle",command=lambda:self.action(self.request_update)).pack(side="left",padx=4)
         self.requests=self.tree(parent,("id","customer","due","message"),("ID","Firma","Termin","Talep (özet)"),height=11)
+        self.requests.bind("<<TreeviewSelect>>",self.request_select)
 
     @staticmethod
     def combo_id(c):
@@ -202,6 +205,20 @@ class LocalQuoteApp(tk.Tk):
 
     def request_add(self):
         service.create_request(self.conn,self.combo_id(self.r_customer),self.r_text.get("1.0","end").strip(),self.r_due.get())
+
+    def request_select(self,_):
+        if not self.requests.selection():return
+        row=self.conn.execute("SELECT * FROM requests WHERE id=?",(int(self.requests.selection()[0]),)).fetchone()
+        if row is None:return
+        self.r_due.delete(0,"end");self.r_due.insert(0,row["due_date"])
+        self.r_text.delete("1.0","end");self.r_text.insert("1.0",row["message"])
+        for value in self.r_customer["values"]:
+            if value.startswith(str(row["customer_id"])+" • "):self.r_customer.set(value);break
+
+    def request_update(self):
+        if not self.requests.selection():raise ValueError("Talep seçiniz")
+        service.update_request(self.conn,int(self.requests.selection()[0]),self.combo_id(self.r_customer),
+                               self.r_text.get("1.0","end").strip(),self.r_due.get())
 
     def quotes_tab(self,parent):
         tool=ttk.Frame(parent);tool.pack(fill="x",pady=4)
@@ -213,11 +230,18 @@ class LocalQuoteApp(tk.Tk):
         self.q_search.bind("<KeyRelease>",lambda _:self.refresh_quotes())
         self.quotes=self.tree(parent,("id","customer","status","date"),("ID","Müşteri","Durum","Oluşturulma"),height=8)
         self.quotes.bind("<<TreeviewSelect>>",self.quote_select)
+        note_bar=ttk.Frame(parent);note_bar.pack(fill="x",pady=2)
+        ttk.Label(note_bar,text="Teklif notu").pack(side="left")
+        self.q_note=ttk.Entry(note_bar,width=60);self.q_note.pack(side="left",fill="x",expand=True,padx=4)
+        ttk.Button(note_bar,text="Notu Kaydet",command=lambda:self.action(self.quote_note_update)).pack(side="left")
         panel=ttk.LabelFrame(parent,text="Seçili Teklife Satır Ekle",padding=6);panel.pack(fill="x")
         ttk.Label(panel,text="Katalog hizmeti").grid(row=0,column=0,sticky="w",padx=5)
         self.q_service=ttk.Combobox(panel,state="readonly",width=48)
         self.q_service.grid(row=0,column=1,columnspan=4,sticky="ew",padx=5,pady=4)
         self.q_service.bind("<<ComboboxSelected>>",self.quote_service_select)
+        self.q_package=ttk.Combobox(panel,state="readonly",width=22)
+        self.q_package.grid(row=0,column=5,padx=3)
+        ttk.Button(panel,text="Paketi Teklife Ekle",command=lambda:self.action(self.quote_package_add)).grid(row=0,column=6,padx=3)
         entries=[("Açıklama","description"),("Miktar","quantity"),("Fiyat TL","price"),
                  ("İndirim %","discount"),("KDV %","vat")]
         self.q_fields={}
