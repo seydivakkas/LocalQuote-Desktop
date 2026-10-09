@@ -1,6 +1,7 @@
 """Windows CI proof: packaged EXE bootstrap + generated DB/PDF and isolated restore.
 Only synthetic data. Not a clean offline GUI acceptance replacement.
 """
+import base64
 import hashlib
 import json
 import os
@@ -45,7 +46,9 @@ def main(exe: Path, report: Path):
                 service.add_line(conn,qid,sid,"Şablon örneği "+str(i)+" ÇĞİÖŞÜ", "1","10")
             service.approve_quote(conn,qid)
             long_pdf=root/"multipage.pdf"
-            create_pdf(service.quote_detail(conn,qid),long_pdf)
+            logo=root/"synthetic-logo.png"
+            logo.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/9qAAAAAASUVORK5CYII="))
+            create_pdf(service.quote_detail(conn,qid),long_pdf,logo_path=logo)
             assert long_pdf.is_file() and long_pdf.stat().st_size>4000
         restored=root/"profile-B"/"db.sqlite3"
         restore_database(backup,restored)
@@ -66,7 +69,7 @@ def main(exe: Path, report: Path):
             "multipage_pdf_sha256":hashlib.sha256(long_pdf.read_bytes()).hexdigest(),
             "backup_sha256":hashlib.sha256(backup.read_bytes()).hexdigest(),
             "validated":["packaged_exe_demo","pdf_header","sqlite_persistence",
-                         "50_line_unicode_render","backup_restore_across_directories",
+                         "50_line_unicode_render","synthetic_logo_render","backup_restore_across_directories",
                          "restore_no_overwrite"],
             "limitations":["not a disconnected-network GUI test","not a clean Windows VM without Python",
                            "not an interactive logo selection test"],
