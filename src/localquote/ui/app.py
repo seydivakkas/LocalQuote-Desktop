@@ -1,5 +1,6 @@
 """Small fully offline Tkinter client. Business rules reside in service.py."""
 from __future__ import annotations
+import json
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
@@ -116,6 +117,46 @@ class LocalQuoteApp(tk.Tk):
         ttk.Button(buttons,text="Pasife Al",command=lambda:self.action(self.service_deactivate)).pack(side="left",padx=3)
         self.services=self.tree(parent,("id","name","unit","price","vat"),("ID","Hizmet","Birim","Fiyat TL","KDV %"))
         self.services.bind("<<TreeviewSelect>>",self.service_select)
+        pack=ttk.LabelFrame(parent,text="Hizmet Paketleri — örnek: 1:2, 3:1",padding=6);pack.pack(fill="x")
+        ttk.Label(pack,text="Paket adı").pack(side="left",padx=3)
+        self.package_name=ttk.Entry(pack,width=20);self.package_name.pack(side="left",padx=3)
+        ttk.Label(pack,text="HizmetID:Miktar").pack(side="left",padx=3)
+        self.package_items=ttk.Entry(pack,width=23);self.package_items.pack(side="left",padx=3)
+        ttk.Button(pack,text="Ekle",command=lambda:self.action(self.package_add)).pack(side="left")
+        ttk.Button(pack,text="Güncelle",command=lambda:self.action(self.package_update)).pack(side="left")
+        ttk.Button(pack,text="Pasif",command=lambda:self.action(self.package_deactivate)).pack(side="left")
+        self.packages=self.tree(parent,("id","name","content"),("ID","Paket","İçerik"),height=4)
+        self.packages.bind("<<TreeviewSelect>>",self.package_select)
+
+    def package_id(self):
+        selection=self.packages.selection()
+        if not selection:raise ValueError("Önce paket seçiniz")
+        return int(selection[0])
+
+    def parsed_package_items(self):
+        output=[]
+        for token in self.package_items.get().split(","):
+            if not token.strip():continue
+            tokens=token.strip().split(":")
+            if len(tokens)!=2:raise ValueError("Paket biçimi: 1:2, 3:1")
+            output.append((int(tokens[0].strip()),tokens[1].strip()))
+        return output
+
+    def package_add(self):
+        service.create_service_package(self.conn,self.package_name.get(),self.parsed_package_items())
+
+    def package_update(self):
+        service.update_service_package(self.conn,self.package_id(),self.package_name.get(),self.parsed_package_items())
+
+    def package_deactivate(self):
+        service.deactivate_service_package(self.conn,self.package_id())
+
+    def package_select(self,_):
+        if not self.packages.selection():return
+        data=service.package_detail(self.conn,self.package_id())
+        self.package_name.delete(0,"end");self.package_name.insert(0,data["package"]["name"])
+        self.package_items.delete(0,"end")
+        self.package_items.insert(0,", ".join(str(x["service_id"])+":"+str(x["quantity"]) for x in data["items"]))
 
     def service_id(self):
         selected=self.services.selection()
