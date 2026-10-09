@@ -1,5 +1,6 @@
 """Small fully offline Tkinter client. Business rules reside in service.py."""
 from __future__ import annotations
+import json
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
@@ -116,6 +117,46 @@ class LocalQuoteApp(tk.Tk):
         ttk.Button(buttons,text="Pasife Al",command=lambda:self.action(self.service_deactivate)).pack(side="left",padx=3)
         self.services=self.tree(parent,("id","name","unit","price","vat"),("ID","Hizmet","Birim","Fiyat TL","KDV %"))
         self.services.bind("<<TreeviewSelect>>",self.service_select)
+        pack=ttk.LabelFrame(parent,text="Hizmet Paketleri — örnek: 1:2, 3:1",padding=6);pack.pack(fill="x")
+        ttk.Label(pack,text="Paket adı").pack(side="left",padx=3)
+        self.package_name=ttk.Entry(pack,width=20);self.package_name.pack(side="left",padx=3)
+        ttk.Label(pack,text="HizmetID:Miktar").pack(side="left",padx=3)
+        self.package_items=ttk.Entry(pack,width=23);self.package_items.pack(side="left",padx=3)
+        ttk.Button(pack,text="Ekle",command=lambda:self.action(self.package_add)).pack(side="left")
+        ttk.Button(pack,text="Güncelle",command=lambda:self.action(self.package_update)).pack(side="left")
+        ttk.Button(pack,text="Pasif",command=lambda:self.action(self.package_deactivate)).pack(side="left")
+        self.packages=self.tree(parent,("id","name","content"),("ID","Paket","İçerik"),height=4)
+        self.packages.bind("<<TreeviewSelect>>",self.package_select)
+
+    def package_id(self):
+        selection=self.packages.selection()
+        if not selection:raise ValueError("Önce paket seçiniz")
+        return int(selection[0])
+
+    def parsed_package_items(self):
+        output=[]
+        for token in self.package_items.get().split(","):
+            if not token.strip():continue
+            tokens=token.strip().split(":")
+            if len(tokens)!=2:raise ValueError("Paket biçimi: 1:2, 3:1")
+            output.append((int(tokens[0].strip()),tokens[1].strip()))
+        return output
+
+    def package_add(self):
+        service.create_service_package(self.conn,self.package_name.get(),self.parsed_package_items())
+
+    def package_update(self):
+        service.update_service_package(self.conn,self.package_id(),self.package_name.get(),self.parsed_package_items())
+
+    def package_deactivate(self):
+        service.deactivate_service_package(self.conn,self.package_id())
+
+    def package_select(self,_):
+        if not self.packages.selection():return
+        data=service.package_detail(self.conn,self.package_id())
+        self.package_name.delete(0,"end");self.package_name.insert(0,data["package"]["name"])
+        self.package_items.delete(0,"end")
+        self.package_items.insert(0,", ".join(str(x["service_id"])+":"+str(x["quantity"]) for x in data["items"]))
 
     def service_id(self):
         selected=self.services.selection()
@@ -150,8 +191,11 @@ class LocalQuoteApp(tk.Tk):
         self.r_text=tk.Text(form,height=5,width=65,wrap="word")
         self.r_text.grid(row=2,column=1,sticky="ew",padx=8,pady=4)
         form.columnconfigure(1,weight=1)
-        ttk.Button(form,text="Talebi Kaydet",command=lambda:self.action(self.request_add)).grid(row=3,column=1,sticky="e",padx=8,pady=4)
+        buttons=ttk.Frame(form);buttons.grid(row=3,column=1,sticky="e",padx=8,pady=4)
+        ttk.Button(buttons,text="Talep Ekle",command=lambda:self.action(self.request_add)).pack(side="left",padx=4)
+        ttk.Button(buttons,text="Seçileni Güncelle",command=lambda:self.action(self.request_update)).pack(side="left",padx=4)
         self.requests=self.tree(parent,("id","customer","due","message"),("ID","Firma","Termin","Talep (özet)"),height=11)
+        self.requests.bind("<<TreeviewSelect>>",self.request_select)
 
     @staticmethod
     def combo_id(c):
@@ -161,6 +205,20 @@ class LocalQuoteApp(tk.Tk):
 
     def request_add(self):
         service.create_request(self.conn,self.combo_id(self.r_customer),self.r_text.get("1.0","end").strip(),self.r_due.get())
+
+    def request_select(self,_):
+        if not self.requests.selection():return
+        row=self.conn.execute("SELECT * FROM requests WHERE id=?",(int(self.requests.selection()[0]),)).fetchone()
+        if row is None:return
+        self.r_due.delete(0,"end");self.r_due.insert(0,row["due_date"])
+        self.r_text.delete("1.0","end");self.r_text.insert("1.0",row["message"])
+        for value in self.r_customer["values"]:
+            if value.startswith(str(row["customer_id"])+" • "):self.r_customer.set(value);break
+
+    def request_update(self):
+        if not self.requests.selection():raise ValueError("Talep seçiniz")
+        service.update_request(self.conn,int(self.requests.selection()[0]),self.combo_id(self.r_customer),
+                               self.r_text.get("1.0","end").strip(),self.r_due.get())
 
     def quotes_tab(self,parent):
         tool=ttk.Frame(parent);tool.pack(fill="x",pady=4)
@@ -172,11 +230,18 @@ class LocalQuoteApp(tk.Tk):
         self.q_search.bind("<KeyRelease>",lambda _:self.refresh_quotes())
         self.quotes=self.tree(parent,("id","customer","status","date"),("ID","Müşteri","Durum","Oluşturulma"),height=8)
         self.quotes.bind("<<TreeviewSelect>>",self.quote_select)
+        note_bar=ttk.Frame(parent);note_bar.pack(fill="x",pady=2)
+        ttk.Label(note_bar,text="Teklif notu").pack(side="left")
+        self.q_note=ttk.Entry(note_bar,width=60);self.q_note.pack(side="left",fill="x",expand=True,padx=4)
+        ttk.Button(note_bar,text="Notu Kaydet",command=lambda:self.action(self.quote_note_update)).pack(side="left")
         panel=ttk.LabelFrame(parent,text="Seçili Teklife Satır Ekle",padding=6);panel.pack(fill="x")
         ttk.Label(panel,text="Katalog hizmeti").grid(row=0,column=0,sticky="w",padx=5)
         self.q_service=ttk.Combobox(panel,state="readonly",width=48)
         self.q_service.grid(row=0,column=1,columnspan=4,sticky="ew",padx=5,pady=4)
         self.q_service.bind("<<ComboboxSelected>>",self.quote_service_select)
+        self.q_package=ttk.Combobox(panel,state="readonly",width=22)
+        self.q_package.grid(row=0,column=5,padx=3)
+        ttk.Button(panel,text="Paketi Teklife Ekle",command=lambda:self.action(self.quote_package_add)).grid(row=0,column=6,padx=3)
         entries=[("Açıklama","description"),("Miktar","quantity"),("Fiyat TL","price"),
                  ("İndirim %","discount"),("KDV %","vat")]
         self.q_fields={}
@@ -189,7 +254,7 @@ class LocalQuoteApp(tk.Tk):
         for title,fn in [
           ("Satır Ekle",self.quote_line_add),("Seçili Satırı Sil",self.quote_line_remove),
           ("Teklifi Onayla",self.quote_approve),("Onaylı PDF",self.quote_pdf),
-          ("CSV Dışa Aktar",self.quote_csv),("Veritabanı Yedeği",self.quote_backup)]:
+          ("CSV Dışa Aktar",self.quote_csv),("Veritabanı Yedeği",self.quote_backup),("Yedeği Yeni Konuma Aç",self.quote_restore),("Sürüm Geçmişi",self.quote_history)]:
             ttk.Button(buttons,text=title,command=lambda f=fn:self.action(f)).pack(side="left",padx=3)
         self.lines=self.tree(parent,("id","description","quantity","price","discount","vat"),
            ("ID","Açıklama","Miktar","Fiyat TL","İnd.%","KDV%"),height=6)
@@ -210,6 +275,7 @@ class LocalQuoteApp(tk.Tk):
         selection=self.quotes.selection()
         if not selection:return
         detail=service.quote_detail(self.conn,int(selection[0]))
+        self.q_note.delete(0,"end");self.q_note.insert(0,detail["quote"]["note"])
         for row in detail["lines"]:
             self.lines.insert("", "end", iid=str(row["id"]),values=(row["id"],row["description"][:95],
                 row["quantity"],money(row["unit_price_cents"]),row["discount_percent"],row["vat_percent"]))
@@ -227,6 +293,23 @@ class LocalQuoteApp(tk.Tk):
         service.add_line(self.conn,self.quote_id(),svc_id,**{k:v.get() for k,v in self.q_fields.items()})
         self.quote_select()
 
+    def quote_note_update(self):
+        service.update_quote_note(self.conn,self.quote_id(),self.q_note.get())
+        self.quote_select()
+
+    def quote_package_add(self):
+        service.add_package_to_quote(self.conn,self.quote_id(),self.combo_id(self.q_package))
+        self.quote_select()
+
+    def quote_history(self):
+        win=tk.Toplevel(self);win.title("Sürüm Geçmişi — Salt Okunur");win.geometry("690x400")
+        view=tk.Text(win,wrap="word");view.pack(fill="both",expand=True)
+        for rev in service.quote_history(self.conn,self.quote_id()):
+            snapshot=json.loads(rev["snapshot_json"])
+            total=snapshot.get("totals",{}).get("total_cents","v1 baseline")
+            view.insert("end","Sürüm "+str(rev["version"])+": "+rev["event"]+"; toplam kuruş: "+str(total)+"\n")
+        view.configure(state="disabled")
+
     def quote_line_remove(self):
         selection=self.lines.selection()
         if not selection:raise ValueError("Önce teklif satırı seçin")
@@ -241,7 +324,11 @@ class LocalQuoteApp(tk.Tk):
         target=filedialog.asksaveasfilename(parent=self,defaultextension=".pdf",filetypes=[("PDF","*.pdf")],initialfile=f"Teklif-{qid}.pdf")
         if not target:return
         if Path(target).exists() and not messagebox.askyesno("Dosya var","PDF dosyası üzerine yazılsın mı?",parent=self):return
-        create_pdf(service.quote_detail(self.conn,qid),target)
+        logo=None
+        if messagebox.askyesno("Logo", "Ajans logosu eklemek ister misiniz?",parent=self):
+            logo=filedialog.askopenfilename(parent=self,filetypes=[("Görsel","*.png *.jpg *.jpeg")])
+            if not logo:return
+        create_pdf(service.quote_detail(self.conn,qid),target,logo_path=logo)
         service.mark_exported(self.conn,qid)
         self.quote_select()
         messagebox.showinfo("PDF oluşturuldu",target,parent=self)
@@ -254,6 +341,19 @@ class LocalQuoteApp(tk.Tk):
         target=filedialog.asksaveasfilename(parent=self,defaultextension=".sqlite3",filetypes=[("SQLite yedeği","*.sqlite3")])
         if target:backup_database(self.conn,target)
 
+    def quote_restore(self):
+        source=filedialog.askopenfilename(parent=self,filetypes=[("SQLite yedeği","*.sqlite3")])
+        if not source:return
+        target=filedialog.asksaveasfilename(parent=self,defaultextension=".sqlite3",
+                     title="Yedeği yeni ve boş dosya konumuna geri yükle",
+                     filetypes=[("SQLite","*.sqlite3")])
+        if not target:return
+        restore_database(source,target)
+        messagebox.showinfo("Geri yükleme tamamlandı",
+            "Yeni veritabanı dosyası oluşturuldu. Mevcut açık veritabanı değiştirilmedi. "
+            "Yeni dosyayı kullanmak için uygulamayı ilgili veri diziniyle yeniden başlatın.",
+            parent=self)
+
     def refresh_customers(self):
         selected=self.customers.selection()
         for item in self.customers.get_children():self.customers.delete(item)
@@ -265,6 +365,13 @@ class LocalQuoteApp(tk.Tk):
         self.refresh_customers()
         for item in self.services.get_children(): self.services.delete(item)
         svcs=service.list_services(self.conn)
+        for item in self.packages.get_children(): self.packages.delete(item)
+        pkgs=service.list_service_packages(self.conn)
+        for pkg in pkgs:
+            data=service.package_detail(self.conn,pkg["id"])
+            items=", ".join(str(x["name"])+ " x "+str(x["quantity"]) for x in data["items"])
+            self.packages.insert("","end",iid=str(pkg["id"]),values=(pkg["id"],pkg["name"],items))
+        self.q_package["values"]=[str(pkg["id"])+" • "+pkg["name"] for pkg in pkgs]
         for row in svcs:self.services.insert("","end",iid=str(row["id"]),values=(row["id"],row["name"],row["unit"],money(row["unit_price_cents"]),row["vat_percent"]))
         cust=service.list_customers(self.conn)
         self.r_customer["values"]=[f"{r['id']} • {r['name']}" for r in cust]

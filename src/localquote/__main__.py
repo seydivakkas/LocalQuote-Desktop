@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from contextlib import closing
 from .config import database_path
-from .storage.db import open_db
+from .storage.db import open_db, SCHEMA_VERSION
 from .storage.backup import restore_database
 from . import service
 from .export.pdf import create_pdf
@@ -31,7 +31,7 @@ def main(argv=None):
         return 0
     if args.smoke:
         with closing(open_db(args.db)) as conn:
-            _announce("PASS: SQLite schema, integrity, offline bootstrap; schema version 1")
+            _announce(f"PASS: SQLite schema, integrity, local bootstrap; schema version {SCHEMA_VERSION}")
         return 0
     if args.demo:
         with closing(open_db(args.db)) as conn:

@@ -89,14 +89,10 @@ def list_services(conn, active_only=True):
 def create_request(conn, customer_id, message, due_date=""):
     _id(conn,"customers",customer_id)
     message = _required(message,"Talep",20000)
-    due_date = _optional(due_date,10)
-    if due_date:
-        try:
-            if date.fromisoformat(due_date).isoformat()!=due_date: raise ValueError()
-        except ValueError:
-            raise InputError("Tarih YYYY-MM-DD biçiminde olmalı") from None
+    due_date = _due(due_date)
     with transaction(conn):
         cur=conn.execute("INSERT INTO requests(customer_id,message,due_date) VALUES(?,?,?)", (customer_id,message,due_date))
+        record_request_revision(conn,cur.lastrowid,"CREATED")
         return cur.lastrowid
 
 
@@ -117,6 +113,7 @@ def create_quote(conn, customer_id=None, request_id=None, note=""):
     with transaction(conn):
         cur=conn.execute("INSERT INTO quotes(customer_id,request_id,note) VALUES (?,?,?)",(customer_id,request_id,note))
         conn.execute("INSERT INTO quote_events(quote_id,event) VALUES (?,?)",(cur.lastrowid,"CREATED"))
+        record_quote_revision(conn,cur.lastrowid,"CREATED")
         return cur.lastrowid
 
 
@@ -138,6 +135,7 @@ def add_line(conn, quote_id: int, service_id: int | None, description: str, quan
         cur=conn.execute("INSERT INTO quote_lines (quote_id,service_id,description,quantity,unit_price_cents,discount_percent,vat_percent) "
             "VALUES (?,?,?,?,?,?,?)", (quote_id,service_id,line.description,line.quantity,line.unit_price_cents,line.discount_percent,line.vat_percent))
         conn.execute("INSERT INTO quote_events(quote_id,event) VALUES (?,?)",(quote_id,"LINE_ADDED"))
+        record_quote_revision(conn,quote_id,"LINE_ADDED")
         return cur.lastrowid
 
 
@@ -148,6 +146,7 @@ def remove_line(conn, quote_id: int, line_id: int):
     with transaction(conn):
         conn.execute("DELETE FROM quote_lines WHERE id=? AND quote_id=?",(line_id,quote_id))
         conn.execute("INSERT INTO quote_events(quote_id,event) VALUES (?,?)",(quote_id,"LINE_REMOVED"))
+        record_quote_revision(conn,quote_id,"LINE_REMOVED")
 
 
 def quote_detail(conn,quote_id):
@@ -165,6 +164,7 @@ def approve_quote(conn,quote_id):
     with transaction(conn):
         conn.execute("UPDATE quotes SET status='APPROVED',approved_at=datetime('now') WHERE id=? AND status='DRAFT'",(quote_id,))
         conn.execute("INSERT INTO quote_events(quote_id,event) VALUES (?,?)",(quote_id,"APPROVED"))
+        record_quote_revision(conn,quote_id,"APPROVED")
 
 
 def mark_exported(conn,quote_id):
@@ -174,6 +174,7 @@ def mark_exported(conn,quote_id):
     with transaction(conn):
         conn.execute("UPDATE quotes SET status='EXPORTED' WHERE id=?",(quote_id,))
         conn.execute("INSERT INTO quote_events(quote_id,event) VALUES (?,?)",(quote_id,"EXPORTED"))
+        record_quote_revision(conn,quote_id,"EXPORTED")
 
 
 def list_quotes(conn,query=""):
@@ -181,3 +182,11 @@ def list_quotes(conn,query=""):
     pattern=f"%{escaped}%" if query else "%"
     return conn.execute("SELECT q.*,c.name customer_name FROM quotes q JOIN customers c ON c.id=q.customer_id "
       "WHERE c.name LIKE ? ESCAPE '\\' ORDER BY q.id DESC",(pattern,)).fetchall()
+
+# P0-02's optional business workflows extend the original public service API.
+from .extensions import (
+    _due, record_request_revision, record_quote_revision, request_history,
+    quote_history, update_request, update_quote_note,
+    create_service_package, update_service_package, deactivate_service_package,
+    list_service_packages, package_detail, add_package_to_quote
+)
