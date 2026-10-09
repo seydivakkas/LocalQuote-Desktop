@@ -254,7 +254,7 @@ class LocalQuoteApp(tk.Tk):
         for title,fn in [
           ("Satır Ekle",self.quote_line_add),("Seçili Satırı Sil",self.quote_line_remove),
           ("Teklifi Onayla",self.quote_approve),("Onaylı PDF",self.quote_pdf),
-          ("CSV Dışa Aktar",self.quote_csv),("Veritabanı Yedeği",self.quote_backup),("Sürüm Geçmişi",self.quote_history)]:
+          ("CSV Dışa Aktar",self.quote_csv),("Veritabanı Yedeği",self.quote_backup),("Yedeği Yeni Konuma Aç",self.quote_restore),("Sürüm Geçmişi",self.quote_history)]:
             ttk.Button(buttons,text=title,command=lambda f=fn:self.action(f)).pack(side="left",padx=3)
         self.lines=self.tree(parent,("id","description","quantity","price","discount","vat"),
            ("ID","Açıklama","Miktar","Fiyat TL","İnd.%","KDV%"),height=6)
@@ -324,7 +324,11 @@ class LocalQuoteApp(tk.Tk):
         target=filedialog.asksaveasfilename(parent=self,defaultextension=".pdf",filetypes=[("PDF","*.pdf")],initialfile=f"Teklif-{qid}.pdf")
         if not target:return
         if Path(target).exists() and not messagebox.askyesno("Dosya var","PDF dosyası üzerine yazılsın mı?",parent=self):return
-        create_pdf(service.quote_detail(self.conn,qid),target)
+        logo=None
+        if messagebox.askyesno("Logo", "Ajans logosu eklemek ister misiniz?",parent=self):
+            logo=filedialog.askopenfilename(parent=self,filetypes=[("Görsel","*.png *.jpg *.jpeg")])
+            if not logo:return
+        create_pdf(service.quote_detail(self.conn,qid),target,logo_path=logo)
         service.mark_exported(self.conn,qid)
         self.quote_select()
         messagebox.showinfo("PDF oluşturuldu",target,parent=self)
@@ -336,6 +340,19 @@ class LocalQuoteApp(tk.Tk):
     def quote_backup(self):
         target=filedialog.asksaveasfilename(parent=self,defaultextension=".sqlite3",filetypes=[("SQLite yedeği","*.sqlite3")])
         if target:backup_database(self.conn,target)
+
+    def quote_restore(self):
+        source=filedialog.askopenfilename(parent=self,filetypes=[("SQLite yedeği","*.sqlite3")])
+        if not source:return
+        target=filedialog.asksaveasfilename(parent=self,defaultextension=".sqlite3",
+                     title="Yedeği yeni ve boş dosya konumuna geri yükle",
+                     filetypes=[("SQLite","*.sqlite3")])
+        if not target:return
+        restore_database(source,target)
+        messagebox.showinfo("Geri yükleme tamamlandı",
+            "Yeni veritabanı dosyası oluşturuldu. Mevcut açık veritabanı değiştirilmedi. "
+            "Yeni dosyayı kullanmak için uygulamayı ilgili veri diziniyle yeniden başlatın.",
+            parent=self)
 
     def refresh_customers(self):
         selected=self.customers.selection()
