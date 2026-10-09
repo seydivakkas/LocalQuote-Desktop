@@ -18,6 +18,6 @@
 | LQ-F014 SQLite backup/restore | backup module + CLI | restoration matches snapshots PASS; Windows transfer pending | PARTIAL |
 | LQ-F015 Error boundary | GUI dialog, guarded DB open | corrupt DB error test PASS, full UI error validation pending | PARTIAL |
 | LQ-F016 Portable EXE | PowerShell build + Actions preview | clean Windows runtime not verified | HOLD |
-| LQ-F017 Regression quality | unittest 26 cases, CI YAML | local tests PASS, Actions has not run on GitHub | PARTIAL |
+| LQ-F017 Regression quality | unittest 26 cases, CI YAML | local 26/26 PASS; 2026-10-10 GitHub Actions core test matrix 4/4 PASS; preview and independent Windows customer checks tracked separately | PARTIAL |
 
-**P0 overall: HOLD.** Do not move to Excel phase 2 until all release checks pass. GitHub repo, CI and Windows validation still require external action.
+**P0 overall: HOLD.** Do not move to Excel phase 2 until all release checks pass. GitHub repo and source import completed. CI status: see https://github.com/seydivakkas/LocalQuote-Desktop/actions. Clean Windows customer validation, missing P0 features, and licensing still require independent evidence.
