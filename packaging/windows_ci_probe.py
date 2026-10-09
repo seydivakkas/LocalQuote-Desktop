@@ -50,6 +50,11 @@ def main(exe: Path, report: Path):
             logo.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/9qAAAAAASUVORK5CYII="))
             create_pdf(service.quote_detail(conn,qid),long_pdf,logo_path=logo)
             assert long_pdf.is_file() and long_pdf.stat().st_size>4000
+            from pypdf import PdfReader
+            reader=PdfReader(long_pdf)
+            extracted=" ".join(page.extract_text() or "" for page in reader.pages)
+            assert len(reader.pages)>=2, "50-line document did not paginate"
+            assert "ÇĞİÖŞÜ" in extracted and "Şablon örneği 49" in extracted, "Unicode PDF text extraction failed"
         restored=root/"profile-B"/"db.sqlite3"
         restore_database(backup,restored)
         with closing(open_db(restored)) as conn:
@@ -69,7 +74,7 @@ def main(exe: Path, report: Path):
             "multipage_pdf_sha256":hashlib.sha256(long_pdf.read_bytes()).hexdigest(),
             "backup_sha256":hashlib.sha256(backup.read_bytes()).hexdigest(),
             "validated":["packaged_exe_demo","pdf_header","sqlite_persistence",
-                         "50_line_unicode_render","synthetic_logo_render","backup_restore_across_directories",
+                         "50_line_unicode_render","unicode_text_extraction","multipage_count","synthetic_logo_render","backup_restore_across_directories",
                          "restore_no_overwrite"],
             "limitations":["not a disconnected-network GUI test","not a clean Windows VM without Python",
                            "not an interactive logo selection test"],
