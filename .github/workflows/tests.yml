@@ -130,25 +130,34 @@ jobs:
       - name: Rebuild from same source commit on second Windows runner
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force docs/license-evidence/wheelhouse | Out-Null
-          New-Item -ItemType Directory -Force docs/license-evidence/build-wheelhouse | Out-Null
-          python -m pip download --only-binary=:all: --dest docs/license-evidence/wheelhouse -r requirements-runtime.lock
-          if ($LASTEXITCODE -ne 0) { throw 'Runtime download failed' }
-          python packaging/wheel_provenance.py --wheelhouse docs/license-evidence/wheelhouse --lock requirements-runtime.lock --out docs/license-evidence/runtime-hashed.txt --manifest docs/license-evidence/wheel-provenance.json
-          if ($LASTEXITCODE -ne 0) { throw 'Runtime hashes failed' }
-          python -m pip download --only-binary=:all: --dest docs/license-evidence/build-wheelhouse -r requirements-build.lock
-          if ($LASTEXITCODE -ne 0) { throw 'Build download failed' }
-          python packaging/build_wheel_lock.py --wheelhouse docs/license-evidence/build-wheelhouse --out docs/license-evidence/build-hashed.txt --manifest docs/license-evidence/build-wheel-provenance.json
-          if ($LASTEXITCODE -ne 0) { throw 'Build hashes failed' }
+          # Independent build, identical verified wheel bytes from first job.
+          New-Item -ItemType Directory -Force docs/license-evidence | Out-Null
+          Copy-Item -Recurse first-evidence/wheelhouse docs/license-evidence/wheelhouse
+          Copy-Item -Recurse first-evidence/build-wheelhouse docs/license-evidence/build-wheelhouse
+          Copy-Item first-evidence/runtime-hashed.txt docs/license-evidence/runtime-hashed.txt
+          Copy-Item first-evidence/build-hashed.txt docs/license-evidence/build-hashed.txt
+          python packaging/wheel_provenance.py --wheelhouse docs/license-evidence/wheelhouse --lock requirements-runtime.lock --out docs/license-evidence/runtime-reverified.txt --manifest docs/license-evidence/wheel-provenance.json
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime re-verification failed' }
+          if ((Get-Content -Raw docs/license-evidence/runtime-reverified.txt) -ne (Get-Content -Raw docs/license-evidence/runtime-hashed.txt)) { throw 'Runtime wheel bytes differ from first build' }
+          python packaging/build_wheel_lock.py --wheelhouse docs/license-evidence/build-wheelhouse --out docs/license-evidence/build-reverified.txt --manifest docs/license-evidence/build-wheel-provenance.json
+          if ($LASTEXITCODE -ne 0) { throw 'Build re-verification failed' }
+          if ((Get-Content -Raw docs/license-evidence/build-reverified.txt) -ne (Get-Content -Raw docs/license-evidence/build-hashed.txt)) { throw 'Build wheel bytes differ from first build' }
           .\packaging\build_windows.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Second Windows build failed' }
       - name: Inventory second build and compare full file hashes
         shell: pwsh
         run: |
-          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output second-evidence --commit "$env:GITHUB_SHA"
+          python -m venv .audit-runtime
+          .\.audit-runtime\Scripts\python.exe -m pip install --no-index --find-links docs/license-evidence/wheelhouse --require-hashes -r docs/license-evidence/runtime-hashed.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Second runtime license environment failed' }
+          .\.audit-runtime\Scripts\python.exe packaging/license_audit.py --output second-evidence --bundle dist/LocalQuote-Desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Second license notice staging failed' }
+          python packaging/wheel_native_match.py --bundle dist/LocalQuote-Desktop --wheelhouse docs/license-evidence/wheelhouse --out second-evidence/native-wheel-matches.json
+          if ($LASTEXITCODE -ne 0) { throw 'Second mypyc wheel identity failed' }
+          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output second-evidence --commit "$env:GITHUB_SHA" --wheel-match second-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Second native inventory failed' }
           python packaging/compare_builds.py --first first-evidence/package-file-hashes.json --second second-evidence/package-file-hashes.json --out second-evidence/build-comparison.json
-          if ($LASTEXITCODE -ne 0) { Write-Warning 'Differences found; reproducibility not accepted' }
+          if ($LASTEXITCODE -ne 0) { throw 'Non-reproducible Windows build: manifest differences found' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
