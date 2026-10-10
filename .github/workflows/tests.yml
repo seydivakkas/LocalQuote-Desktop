@@ -87,7 +87,7 @@ jobs:
       - name: Collect native DLL, Python/Tcl/Tk notices and hash-verified preview ZIP
         shell: pwsh
         run: |
-          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output docs/license-evidence --commit "$env:GITHUB_SHA"
+          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output docs/license-evidence --commit "$env:GITHUB_SHA" --wheel-match docs/license-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Native evidence generation failed' }
           python -c "import json; p=json.load(open('docs/license-evidence/native-components.json',encoding='utf-8')); print('Release:',p['release_decision'],'Unresolved:',p['blocking_findings']); assert p['release_decision']=='HOLD'"
       - name: Independently verify packaged ZIP against published SHA-256 manifests
