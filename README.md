@@ -76,3 +76,8 @@ Restart with environment variable `LOCALQUOTE_DATA_DIR` pointed to the **directo
 ## Intellectual property
 
 Repository-owner source license has not been selected. No LICENSE file is published yet. External dependencies keep their own licenses and notice obligations. Commercial rights and distribution should be reviewed before sale.
+
+
+## P0-04 licensing and SBOM (release HOLD)
+
+The Windows preview CI collects a CycloneDX 1.6 runtime SBOM, installed package license notices and an SHA-256 inventory of the packaged Windows directory. See [licensing/SBOM audit](docs/p0_04_license_sbom.md). This does not yet cover all native libraries, fonts, Windows end-user acceptance or customer redistribution rights. **Not approved for commercial release.**
