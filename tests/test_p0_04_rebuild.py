@@ -1,9 +1,10 @@
 """Offline evidence regressions for PR #9."""
-import hashlib,importlib.util,json,tempfile,unittest
+import hashlib,importlib.util,json,tempfile,unittest,sys
 from pathlib import Path
 from zipfile import ZipFile
 
 ROOT=Path(__file__).resolve().parents[1]/"packaging"
+sys.path.insert(0,str(ROOT))
 def load(n):
     spec=importlib.util.spec_from_file_location(n,ROOT/(n+".py"))
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
