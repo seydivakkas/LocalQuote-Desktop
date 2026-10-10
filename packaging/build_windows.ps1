@@ -1,8 +1,10 @@
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path -Parent $PSScriptRoot)
 python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
-python -m pip install -e . -c requirements-runtime.lock
-if ($LASTEXITCODE -ne 0) { throw 'Runtime dependency install failed' }
+python -m pip install --no-index --find-links docs/license-evidence/wheelhouse --require-hashes -r docs/license-evidence/runtime-hashed.txt
+if ($LASTEXITCODE -ne 0) { throw 'Hash-checked runtime wheel install failed' }
+python -m pip install -e . --no-deps
+if ($LASTEXITCODE -ne 0) { throw 'Local package install failed' }
 python -m pip install -r requirements-build.lock
 if ($LASTEXITCODE -ne 0) { throw 'Pinned PyInstaller install failed' }
 python -m unittest discover -s tests -v
