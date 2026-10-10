@@ -40,8 +40,8 @@ class NativeEvidenceTests(unittest.TestCase):
             report=native.collect(bundle,home,out,"deadbeef")
             self.assertEqual(report["release_decision"],"HOLD")
             self.assertTrue(report["collected_notices"]["CPython"])
-            self.assertFalse(report["collected_notices"]["Tcl"])
-            self.assertIn("MISSING_NOTICE: Tcl", report["blocking_findings"])
+            self.assertTrue(report["collected_notices"]["Tcl"])
+            self.assertIn("MANUAL_PROVENANCE_REVIEW: Tcl license comes from pinned upstream source, not installed runtime", report["blocking_findings"])
             with ZipFile(out/"LocalQuote-Windows-preview-integrity.zip") as z:
                 self.assertIn("THIRD_PARTY_LICENSES/CPython/LICENSE.txt",z.namelist())
                 self.assertIn("LocalQuote-Desktop.exe",z.namelist())
