@@ -44,6 +44,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Wheel download failed' }
           python packaging/wheel_provenance.py --wheelhouse docs/license-evidence/wheelhouse --lock requirements-runtime.lock --out docs/license-evidence/runtime-hashed.txt --manifest docs/license-evidence/wheel-provenance.json
           if ($LASTEXITCODE -ne 0) { throw 'Wheel hash provenance failed' }
+      - name: Download pinned build wheels and hash-lock full build closure
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force docs/license-evidence/build-wheelhouse | Out-Null
+          python -m pip download --only-binary=:all: --dest docs/license-evidence/build-wheelhouse -r requirements-build.lock
+          if ($LASTEXITCODE -ne 0) { throw 'Build wheel download failed' }
+          python packaging/build_wheel_lock.py --wheelhouse docs/license-evidence/build-wheelhouse --out docs/license-evidence/build-hashed.txt --manifest docs/license-evidence/build-wheel-provenance.json
+          if ($LASTEXITCODE -ne 0) { throw 'Build wheel lock failed' }
       - name: Build
         shell: pwsh
         run: .\packaging\build_windows.ps1
@@ -71,6 +79,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'CycloneDX generation failed' }
           .\.audit-runtime\Scripts\python.exe packaging/license_audit.py --output docs/license-evidence --bundle dist/LocalQuote-Desktop
           if ($LASTEXITCODE -ne 0) { throw 'License audit gate failed' }
+      - name: Compare native extensions against exact runtime wheel bytes
+        shell: pwsh
+        run: |
+          python packaging/wheel_native_match.py --bundle dist/LocalQuote-Desktop --wheelhouse docs/license-evidence/wheelhouse --out docs/license-evidence/native-wheel-matches.json
+          if ($LASTEXITCODE -ne 0) { throw 'Native wheel identity gate failed' }
       - name: Collect native DLL, Python/Tcl/Tk notices and hash-verified preview ZIP
         shell: pwsh
         run: |
