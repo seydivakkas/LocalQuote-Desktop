@@ -86,6 +86,11 @@ def stage_licenses(bundle: Path, python_home: Path, findings: list) -> dict:
         python_home / "Lib" / "tkinter" / "license.terms",
     ]
     tcl = next((p for p in tcl_candidates if p.is_file()), None)
+    if tcl is None:
+        vendored = Path(__file__).resolve().parents[1] / "licenses" / "upstream" / "Tcl-8.6-license.terms"
+        if vendored.is_file():
+            tcl = vendored
+            findings.append("MANUAL_PROVENANCE_REVIEW: Tcl license comes from pinned upstream source, not installed runtime")
     stage_notice(tcl, notices / "Tcl" / "license.terms", findings, "Tcl")
     return {
         "CPython": (notices / "CPython" / "LICENSE.txt").is_file(),
