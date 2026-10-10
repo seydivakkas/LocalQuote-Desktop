@@ -47,6 +47,31 @@ class NativeEvidenceTests(unittest.TestCase):
                 self.assertIn("LocalQuote-Desktop.exe",z.namelist())
             self.assertEqual(len((out/"archive-sha256.txt").read_text().split()[0]),64)
 
+class NativeWheelAttributionTests(unittest.TestCase):
+    def test_mypyc_requires_matching_sha_and_named_wheel(self):
+        import hashlib
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); bundle=root/"bundle"; home=root/"python"
+            (bundle/"_internal"/"_tk_data").mkdir(parents=True)
+            (bundle/"LocalQuote-Desktop.exe").write_bytes(b"MZsynthetic")
+            (bundle/"_internal"/"_tk_data"/"license.terms").write_text("Tk terms")
+            (home/"LICENSE.txt").parent.mkdir(parents=True,exist_ok=True)
+            (home/"LICENSE.txt").write_text("Python terms")
+            binary=b"wheel-native"
+            path="_internal/123__mypyc.cp313-win_amd64.pyd"
+            (bundle/path).write_bytes(binary)
+            good=hashlib.sha256(binary).hexdigest()
+            match=root/"match.json"
+            match.write_text(json.dumps({"matched":[{"path":path,"sha256":good,"origin":[{"wheel":"charset_normalizer-3.4.7-cp313-win_amd64.whl","member":"123__mypyc.cp313-win_amd64.pyd"}]}]}))
+            report=native.collect(bundle,home,root/"evidence-a","synthetic",match)
+            self.assertNotIn("UNKNOWN_NATIVE: "+path,report["blocking_findings"])
+            self.assertTrue(any(x["family"].startswith("charset-normalizer") for x in report["native"]))
+            (bundle/path).write_bytes(b"different")
+            report=native.collect(bundle,home,root/"evidence-b","synthetic",match)
+            self.assertIn("UNKNOWN_NATIVE: "+path,report["blocking_findings"])
+
+
 class WheelProvenanceTests(unittest.TestCase):
     def test_hash_lock_from_wheel_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:

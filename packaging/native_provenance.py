@@ -98,12 +98,21 @@ def stage_licenses(bundle: Path, python_home: Path, findings: list) -> dict:
         "Tk": (notices / "Tk" / "license.terms").is_file(),
     }
 
-def collect(bundle: Path, python_home: Path, evidence: Path, commit: str) -> dict:
+def collect(bundle: Path, python_home: Path, evidence: Path, commit: str, wheel_match: Path | None = None) -> dict:
     if not (bundle / "LocalQuote-Desktop.exe").is_file():
         raise ValueError("Missing EXE")
     evidence.mkdir(parents=True, exist_ok=True)
     missing = []
     notices = stage_licenses(bundle, python_home, missing)
+    matches = {}
+    if wheel_match is not None:
+        detail = json.loads(wheel_match.read_text(encoding="utf-8"))
+        for m in detail.get("matched", []):
+            if "__mypyc" not in m["path"].lower():
+                continue
+            origins = [x for x in m.get("origin", []) if x["wheel"].lower().startswith("charset_normalizer-") and "__mypyc" in x["member"]]
+            if origins:
+                matches[(m["path"], m["sha256"])] = origins
     files = []
     native = []
     fonts = []
@@ -114,7 +123,9 @@ def collect(bundle: Path, python_home: Path, evidence: Path, commit: str) -> dic
         if path.suffix.lower() in FONT_SUFFIXES:
             fonts.append(rel)
         if path.suffix.lower() in NATIVE_SUFFIXES:
-            native.append(dict(entry, family=family(rel)))
+            source = matches.get((rel, entry["sha256"]))
+            attribution = "charset-normalizer wheel native extension (byte-matched)" if source else family(rel)
+            native.append(dict(entry, family=attribution, wheel_origin=source or []))
     unknown = [v["path"] for v in native if v["family"] == "UNCLASSIFIED"]
     if unknown:
         missing.extend("UNKNOWN_NATIVE: " + x for x in unknown)
@@ -174,8 +185,9 @@ def main() -> int:
     p.add_argument("--output",type=Path,required=True)
     p.add_argument("--commit",default=os.getenv("GITHUB_SHA","UNSPECIFIED"))
     p.add_argument("--strict",action="store_true")
+    p.add_argument("--wheel-match",type=Path)
     a=p.parse_args()
-    report=collect(a.bundle,a.python_home,a.output,a.commit)
+    report=collect(a.bundle,a.python_home,a.output,a.commit,a.wheel_match)
     return 1 if a.strict and report["blocking_findings"] else 0
 
 if __name__=="__main__":
