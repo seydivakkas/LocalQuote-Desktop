@@ -14,7 +14,7 @@ def collect(wheelhouse:Path, out:Path, manifest:Path):
     records={}
     for wheel in sorted(wheelhouse.glob("*.whl")):
         with ZipFile(wheel) as z:
-            ms=[p for p in z.namelist() if p.endswith(".dist-info/METADATA")]
+            ms=[p for p in z.namelist() if p.endswith(".dist-info/METADATA") and p.count("/")==1]
             if len(ms)!=1: raise ValueError("Invalid wheel "+wheel.name)
             data=Parser().parsestr(z.read(ms[0]).decode("utf-8"))
         name=norm(data["Name"]); version=data["Version"]
