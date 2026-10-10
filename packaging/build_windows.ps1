@@ -5,7 +5,7 @@ python -m pip install --no-index --find-links docs/license-evidence/wheelhouse -
 if ($LASTEXITCODE -ne 0) { throw 'Hash-checked runtime wheel install failed' }
 python -m pip install -e . --no-deps
 if ($LASTEXITCODE -ne 0) { throw 'Local package install failed' }
-python -m pip install -r requirements-build.lock
+python -m pip install --no-index --find-links docs/license-evidence/build-wheelhouse --require-hashes -r docs/license-evidence/build-hashed.txt
 if ($LASTEXITCODE -ne 0) { throw 'Pinned PyInstaller install failed' }
 python -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
