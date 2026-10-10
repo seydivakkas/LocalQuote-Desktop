@@ -54,8 +54,12 @@ def family(rel: str) -> str:
         return "zlib"
     if base.startswith("api-ms-win-") or base.startswith("vcruntime") or base == "ucrtbase.dll":
         return "Microsoft C runtime"
-    if base == "python313.dll" or (base.endswith(".pyd") and "/" not in s.split("_internal/",1)[-1]):
-        return "CPython standard extensions"
+    if base.startswith("python3") and base.endswith(".dll"):
+        return "CPython runtime"
+    if base.endswith(".pyd") and s.startswith("_internal/") and s.count("/") == 1:
+        if base.startswith("_") or base in ("pyexpat.pyd", "select.pyd", "unicodedata.pyd"):
+            return "CPython standard extensions"
+        return "UNCLASSIFIED"
     return "UNCLASSIFIED"
 
 def find_python_license(python_home: Path) -> Path | None:
