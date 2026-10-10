@@ -40,25 +40,26 @@ jobs:
         shell: pwsh
         run: .\packaging\build_windows.ps1
       - name: Install CI-only PDF verification tool
-        run: py -3 -m pip install 'pypdf==5.9.0'
+        run: python -m pip install 'pypdf==5.9.0'
       - name: Windows packaged PDF and backup validation
         shell: pwsh
         run: |
-          py -3 packaging/windows_ci_probe.py dist/LocalQuote-Desktop/LocalQuote-Desktop.exe docs/windows-ci-proof.json
+          python packaging/windows_ci_probe.py dist/LocalQuote-Desktop/LocalQuote-Desktop.exe docs/windows-ci-proof.json
       - name: Capture exact build package versions
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force docs/license-evidence | Out-Null
-          py -3 -m pip freeze --all | Set-Content -Encoding utf8 docs/license-evidence/build-freeze.txt
+          python -m pip freeze --all | Set-Content -Encoding utf8 docs/license-evidence/build-freeze.txt
       - name: Generate runtime SBOM and preview license notices
         shell: pwsh
         run: |
-          py -3 -m venv .audit-runtime
+          python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
+          python -m venv .audit-runtime
           .\.audit-runtime\Scripts\python.exe -m pip install -e . -c requirements-runtime.lock
           if ($LASTEXITCODE -ne 0) { throw 'Audit runtime install failed' }
-          py -3 -m pip install cyclonedx-bom==7.5.0
+          python -m pip install cyclonedx-bom==7.5.0
           if ($LASTEXITCODE -ne 0) { throw 'CycloneDX tool install failed' }
-          py -3 -m cyclonedx_py environment --spec-version 1.6 --output-format JSON --output-file docs/license-evidence/runtime.cdx.json .audit-runtime/Scripts/python.exe
+          python -m cyclonedx_py environment --spec-version 1.6 --output-format JSON --output-file docs/license-evidence/runtime.cdx.json .audit-runtime/Scripts/python.exe
           if ($LASTEXITCODE -ne 0) { throw 'CycloneDX generation failed' }
           .\.audit-runtime\Scripts\python.exe packaging/license_audit.py --output docs/license-evidence --bundle dist/LocalQuote-Desktop
           if ($LASTEXITCODE -ne 0) { throw 'License audit gate failed' }

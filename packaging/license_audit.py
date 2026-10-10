@@ -42,6 +42,7 @@ def collect_license_files(dist: metadata.Distribution, outdir: Path) -> list[dic
         if ".dist-info/licenses/" in rel and any(term in rel.split("/")[-1].lower() for term in ("license", "copying", "notice")):
             candidates.append(rel)
     found = []
+    seen_files = set()
     for item in sorted(set(candidates)):
         possible = [item]
         if not ".dist-info/" in item:
@@ -49,6 +50,10 @@ def collect_license_files(dist: metadata.Distribution, outdir: Path) -> list[dic
         src = next((dist.locate_file(p) for p in possible if Path(dist.locate_file(p)).is_file()), None)
         if src is None:
             continue
+        resolved = Path(src).resolve()
+        if resolved in seen_files:
+            continue
+        seen_files.add(resolved)
         dst = outdir / (Path(item).name if len(found) == 0 else f"{len(found)}-{Path(item).name}")
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dst)

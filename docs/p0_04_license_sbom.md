@@ -38,3 +38,7 @@ The audit includes full wheel notices in the preview under THIRD_PARTY_LICENSES.
 - [ ] Finally perform true offline GUI acceptance on a clean Windows PC for #2 and #4.
 
 **Issue #5 remains OPEN; general commercial release remains HOLD.**
+
+### Interpreter-consistency gate
+
+Windows CI explicitly checks and uses **Python 3.13** via the setup-python-managed `python` command for EXE packaging, independent license inventory and the SBOM. Do **not** use `py -3` (it chooses the latest installed Python on the runner). The previous PR preview inadvertently built with Python 3.14 and is not accepted as release evidence.
