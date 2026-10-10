@@ -77,6 +77,11 @@ jobs:
           python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output docs/license-evidence --commit "$env:GITHUB_SHA"
           if ($LASTEXITCODE -ne 0) { throw 'Native evidence generation failed' }
           python -c "import json; p=json.load(open('docs/license-evidence/native-components.json',encoding='utf-8')); print('Release:',p['release_decision'],'Unresolved:',p['blocking_findings']); assert p['release_decision']=='HOLD'"
+      - name: Independently verify packaged ZIP against published SHA-256 manifests
+        shell: pwsh
+        run: |
+          python packaging/verify_preview.py --zip docs/license-evidence/LocalQuote-Windows-preview-integrity.zip --hash docs/license-evidence/archive-sha256.txt --manifest docs/license-evidence/package-file-hashes.json
+          if ($LASTEXITCODE -ne 0) { throw 'Preview hash verification failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
