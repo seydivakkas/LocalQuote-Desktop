@@ -112,3 +112,48 @@ jobs:
           name: LocalQuote-Desktop-Windows-preview
           path: dist/LocalQuote-Desktop/
           retention-days: 7
+
+  independent-rebuild:
+    name: Independent Windows rebuild comparison (not a release)
+    runs-on: windows-latest
+    needs: windows-preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Download first-build evidence from independent job
+        uses: actions/download-artifact@v4
+        with:
+          name: LocalQuote-P0-04-SBOM-License-Evidence
+          path: first-evidence
+      - name: Rebuild from same source commit on second Windows runner
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force docs/license-evidence/wheelhouse | Out-Null
+          New-Item -ItemType Directory -Force docs/license-evidence/build-wheelhouse | Out-Null
+          python -m pip download --only-binary=:all: --dest docs/license-evidence/wheelhouse -r requirements-runtime.lock
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime download failed' }
+          python packaging/wheel_provenance.py --wheelhouse docs/license-evidence/wheelhouse --lock requirements-runtime.lock --out docs/license-evidence/runtime-hashed.txt --manifest docs/license-evidence/wheel-provenance.json
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime hashes failed' }
+          python -m pip download --only-binary=:all: --dest docs/license-evidence/build-wheelhouse -r requirements-build.lock
+          if ($LASTEXITCODE -ne 0) { throw 'Build download failed' }
+          python packaging/build_wheel_lock.py --wheelhouse docs/license-evidence/build-wheelhouse --out docs/license-evidence/build-hashed.txt --manifest docs/license-evidence/build-wheel-provenance.json
+          if ($LASTEXITCODE -ne 0) { throw 'Build hashes failed' }
+          .\packaging\build_windows.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Second Windows build failed' }
+      - name: Inventory second build and compare full file hashes
+        shell: pwsh
+        run: |
+          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output second-evidence --commit "$env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Second native inventory failed' }
+          python packaging/compare_builds.py --first first-evidence/package-file-hashes.json --second second-evidence/package-file-hashes.json --out second-evidence/build-comparison.json
+          if ($LASTEXITCODE -ne 0) { Write-Warning 'Differences found; reproducibility not accepted' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: LocalQuote-P0-04-Independent-Rebuild
+          path: |
+            second-evidence/build-comparison.json
+            second-evidence/package-file-hashes.json
+          retention-days: 30
