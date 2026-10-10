@@ -9,6 +9,10 @@ python -m pip install --no-index --find-links docs/license-evidence/build-wheelh
 if ($LASTEXITCODE -ne 0) { throw 'Pinned PyInstaller install failed' }
 python -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
+# PyInstaller reproducibility inputs must be stable across separate Windows runners.
+# SOURCE_DATE_EPOCH controls PE timestamp; PYTHONHASHSEED controls bytecode/TOC order.
+$env:PYTHONHASHSEED = '1'
+$env:SOURCE_DATE_EPOCH = '1700000000'
 python -m PyInstaller --clean --noconfirm --onedir --windowed --name LocalQuote-Desktop --paths src launcher.py
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
 $exe = Join-Path (Get-Location) 'dist\LocalQuote-Desktop\LocalQuote-Desktop.exe'
