@@ -1,7 +1,11 @@
-# Third-party notices / licensing checkpoint
+# Third-party notices — P0-04 preliminary audit
 
-The LocalQuote repository's own distribution license is **undecided**. There is no general permission to redistribute user-owned software merely because it has a public GitHub repository. The project owner must select an appropriate license before commercial distribution.
+**Release HOLD:** This repository is public but contains no project-owned open-source LICENSE grant. All rights remain with the relevant copyright holders unless the owner decides otherwise. Any commercial customer delivery requires separately agreed license/usage terms.
 
-External components: CPython (PSF), SQLite (public domain / blessing), Tcl/Tk (Tcl license), ReportLab (BSD-3-Clause), plus ReportLab's actual installed transitive dependencies (review the exact resolved environment). PyInstaller's bootloader has a GPL exception, subject to its requirements. Do not bundle third-party fonts from the development container.
+The runtime dependencies are **ReportLab 4.4.9** (BSD-3-Clause), **Pillow 12.3.0** (MIT-CMU), and **charset-normalizer 3.4.7** (MIT). Versions are constrained by requirements-runtime.lock; their installed wheel license text files are copied into THIRD_PARTY_LICENSES/ of the preview package.
 
-**Release HOLD:** before sending EXE to customers, generate an SBOM for the precise frozen package, retain full license texts and copyright attributions as required, verify build artifacts and all transitive dependencies including Tcl/Tk/Pillow/ReportLab. Do not treat this inventory as completed legal due diligence.
+**Platform components still require review:** CPython (PSF), Tcl/Tk (TCL), SQLite (public domain), Windows native libraries, reportlab/fonts including separately licensed fonts. Fonts installed on the customer's own OS are not intentionally bundled in source.
+
+**Build tool:** PyInstaller 6.22.3 uses GPL with a bootloader exception permitting commercial distribution of the generated executable, subject to dependency license compliance. 
+
+See docs/p0_04_license_sbom.md for precise SBOM generation, SHA-256 evidence, limitations, and remaining release gates. A green CI workflow is not commercial approval.

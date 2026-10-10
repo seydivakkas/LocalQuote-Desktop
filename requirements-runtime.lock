@@ -1,0 +1,5 @@
+# Exact runtime package versions for Python 3.11/3.13.
+# This does NOT guarantee wheel hashes or reproducible Windows EXEs.
+charset-normalizer==3.4.7
+pillow==12.3.0
+reportlab==4.4.9
