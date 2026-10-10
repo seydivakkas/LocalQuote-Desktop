@@ -36,6 +36,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Download exact Windows runtime wheels and generate transient hash lock
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force docs/license-evidence/wheelhouse | Out-Null
+          python -m pip download --only-binary=:all: --dest docs/license-evidence/wheelhouse -r requirements-runtime.lock
+          if ($LASTEXITCODE -ne 0) { throw 'Wheel download failed' }
+          python packaging/wheel_provenance.py --wheelhouse docs/license-evidence/wheelhouse --lock requirements-runtime.lock --out docs/license-evidence/runtime-hashed.txt --manifest docs/license-evidence/wheel-provenance.json
+          if ($LASTEXITCODE -ne 0) { throw 'Wheel hash provenance failed' }
       - name: Build
         shell: pwsh
         run: .\packaging\build_windows.ps1
@@ -55,7 +63,7 @@ jobs:
         run: |
           python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
           python -m venv .audit-runtime
-          .\.audit-runtime\Scripts\python.exe -m pip install -e . -c requirements-runtime.lock
+          .\.audit-runtime\Scripts\python.exe -m pip install --no-index --find-links docs/license-evidence/wheelhouse --require-hashes -r docs/license-evidence/runtime-hashed.txt
           if ($LASTEXITCODE -ne 0) { throw 'Audit runtime install failed' }
           python -m pip install cyclonedx-bom==7.5.0
           if ($LASTEXITCODE -ne 0) { throw 'CycloneDX tool install failed' }
@@ -63,6 +71,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'CycloneDX generation failed' }
           .\.audit-runtime\Scripts\python.exe packaging/license_audit.py --output docs/license-evidence --bundle dist/LocalQuote-Desktop
           if ($LASTEXITCODE -ne 0) { throw 'License audit gate failed' }
+      - name: Collect native DLL, Python/Tcl/Tk notices and hash-verified preview ZIP
+        shell: pwsh
+        run: |
+          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output docs/license-evidence --commit "$env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Native evidence generation failed' }
+          python -c "import json; p=json.load(open('docs/license-evidence/native-components.json',encoding='utf-8')); print('Release:',p['release_decision'],'Unresolved:',p['blocking_findings']); assert p['release_decision']=='HOLD'"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
