@@ -71,7 +71,7 @@ Restart with environment variable `LOCALQUOTE_DATA_DIR` pointed to the **directo
 - [Benchmark protocol](docs/benchmark.md)
 - [Licensing inventory](licenses/dependencies.csv) / [Third-party release checkpoint](licenses/THIRD_PARTY.md)
 
-**Current release status: HOLD.** Linux headless smoke and local tests pass; GUI has not been exercised on a real Windows PC; clean Windows portable EXE, installed dependency SBOM and offline end-to-end evidence are missing. Local LLM/RAG are intentionally out of P0.
+**Current release status: HOLD.** Automated Windows CI builds a portable EXE and generates preliminary SBOM/packaged PDF evidence, but clean, disconnected Windows GUI end-to-end acceptance, complete native license clearance and independent reproducibility are not complete. Local LLM/RAG are intentionally out of P0.
 
 ## Intellectual property
 
@@ -81,3 +81,7 @@ Repository-owner source license has not been selected. No LICENSE file is publis
 ## P0-04 licensing and SBOM (release HOLD)
 
 The Windows preview CI collects a CycloneDX 1.6 runtime SBOM, installed package license notices and an SHA-256 inventory of the packaged Windows directory. See [licensing/SBOM audit](docs/p0_04_license_sbom.md). This does not yet cover all native libraries, fonts, Windows end-user acceptance or customer redistribution rights. **Not approved for commercial release.**
+
+## P0-04 native and wheel-hash provenance
+
+The engineering preview records hash-checked runtime wheel downloads, native DLL/PYD/EXE inventory, available CPython/Tcl/Tk notices, a final folder manifest and verified preview ZIP. See [P0-04 native evidence](docs/p0_04_native_evidence.md). This is not independent third-party license clearance or a commercial release. Offline Windows acceptance will be performed last.
