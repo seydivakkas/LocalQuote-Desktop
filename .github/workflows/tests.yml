@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.15'
       - name: Download exact Windows runtime wheels and generate transient hash lock
         shell: pwsh
         run: |
@@ -107,6 +107,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'PE metadata inspection failed' }
           python packaging/verify_native_metadata.py --source docs/license-evidence/native-source-evidence.json --pe docs/license-evidence/windows-pe-identity.json --manifest docs/license-evidence/package-file-hashes.json --out docs/license-evidence/native-evidence-integrity.json
           if ($LASTEXITCODE -ne 0) { throw 'Native evidence integrity gate failed' }
+      - name: Verify frozen CPython against SHA-256 pinned official Python.org binary release
+        shell: pwsh
+        run: |
+          python packaging/official_python_attestation.py --bundle dist/LocalQuote-Desktop --output docs/license-evidence/official-python-3.13.15.json
+          if ($LASTEXITCODE -ne 0) { throw 'Official CPython binary attestation failed' }
       - name: Independently verify packaged ZIP against published SHA-256 manifests
         shell: pwsh
         run: |
@@ -138,7 +143,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.15'
       - name: Download first-build evidence from independent job
         uses: actions/download-artifact@v4
         with:
