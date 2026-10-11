@@ -87,7 +87,19 @@ def runtime_versions() -> dict:
           "zlib_runtime":zlib.ZLIB_RUNTIME_VERSION}
     try:
         import PIL
+        from PIL import features as pillow_features
         info["pillow"]=PIL.__version__
+        info["pillow_supported_features"]=pillow_features.get_supported()
+        versions={}
+        for name in ("jpg","jpg_2000","zlib","libtiff","freetype2",
+                     "littlecms2","webp","raqm","libjpeg_turbo","avif"):
+            try:
+                result=pillow_features.version(name)
+                if result is not None:
+                    versions[name]=str(result)
+            except (ValueError, KeyError, TypeError):
+                continue
+        info["pillow_codec_versions"]=versions
     except ImportError:
         info["pillow"]="NOT_INSTALLED"
     return info
