@@ -90,6 +90,18 @@ jobs:
           python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output docs/license-evidence --commit "$env:GITHUB_SHA" --wheel-match docs/license-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Native evidence generation failed' }
           python -c "import json; p=json.load(open('docs/license-evidence/native-components.json',encoding='utf-8')); print('Release:',p['release_decision'],'Unresolved:',p['blocking_findings']); assert p['release_decision']=='HOLD'"
+      - name: Capture installed-source native bytes and actual runtime versions
+        shell: pwsh
+        run: |
+          python packaging/native_source_evidence.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --system-root "$env:SystemRoot" --wheel-match docs/license-evidence/native-wheel-matches.json --output docs/license-evidence/native-source-evidence.json
+          if ($LASTEXITCODE -ne 0) { throw 'Native installed-source inspection failed' }
+      - name: Capture all packaged PE file versions and Authenticode metadata
+        shell: pwsh
+        run: |
+          .\packaging\windows_pe_identity.ps1 -Bundle dist/LocalQuote-Desktop -Output docs/license-evidence/windows-pe-identity.json
+          if ($LASTEXITCODE -ne 0) { throw 'PE metadata inspection failed' }
+          python packaging/verify_native_metadata.py --source docs/license-evidence/native-source-evidence.json --pe docs/license-evidence/windows-pe-identity.json --manifest docs/license-evidence/package-file-hashes.json --out docs/license-evidence/native-evidence-integrity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Native evidence integrity gate failed' }
       - name: Independently verify packaged ZIP against published SHA-256 manifests
         shell: pwsh
         run: |
