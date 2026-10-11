@@ -98,12 +98,37 @@ def stage_licenses(bundle: Path, python_home: Path, findings: list) -> dict:
         "Tk": (notices / "Tk" / "license.terms").is_file(),
     }
 
+def stage_reference_licenses(bundle: Path, findings: list) -> list[dict]:
+    """Upstream reference texts, not evidence for matching versions of frozen DLLs."""
+    upstream=Path(__file__).resolve().parents[1] / "licenses" / "upstream"
+    mapping={
+        "OpenSSL": "OpenSSL-3.x-LICENSE.txt",
+        "libffi": "libffi-3.4.6-LICENSE",
+        "zlib": "zlib-1.3.1-LICENSE",
+    }
+    result=[]
+    for family_name, filename in mapping.items():
+        src=upstream / filename
+        if not src.is_file():
+            findings.append("MISSING_UPSTREAM_REFERENCE: " + filename)
+            continue
+        dest=bundle / "THIRD_PARTY_LICENSES" / "UPSTREAM_REFERENCES_UNVERIFIED" / filename
+        dest.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(src,dest)
+        result.append({"component_family":family_name,
+                       "package_path":dest.relative_to(bundle).as_posix(),
+                       "sha256":sha256(dest),
+                       "status":"REFERENCE_ONLY_VERSION_NOT_MATCHED"})
+    return result
+
+
 def collect(bundle: Path, python_home: Path, evidence: Path, commit: str, wheel_match: Path | None = None) -> dict:
     if not (bundle / "LocalQuote-Desktop.exe").is_file():
         raise ValueError("Missing EXE")
     evidence.mkdir(parents=True, exist_ok=True)
     missing = []
     notices = stage_licenses(bundle, python_home, missing)
+    reference_notices = stage_reference_licenses(bundle, missing)
     matches = {}
     if wheel_match is not None:
         detail = json.loads(wheel_match.read_text(encoding="utf-8"))
@@ -136,6 +161,7 @@ def collect(bundle: Path, python_home: Path, evidence: Path, commit: str, wheel_
         "python_home": str(python_home),
         "component_reference_urls": SOURCE_URLS,
         "collected_notices": notices,
+        "upstream_reference_notices": reference_notices,
         "file_count": len(files),
         "native_count": len(native),
         "native": native,
@@ -143,6 +169,7 @@ def collect(bundle: Path, python_home: Path, evidence: Path, commit: str, wheel_
         "blocking_findings": missing + (["BUNDLED_FONT_RIGHTS_UNREVIEWED"] if fonts else []),
         "manual_review": [
             "Microsoft C runtime redistributable terms and precise DLL origin",
+            "OpenSSL/libffi/zlib upstream reference license files are version-unverified, NOT final clearance",
             "Pillow compiled codecs and any embedded third-party notices",
             "OpenSSL / libffi / zlib binary licensing notices and upstream provenance",
             "ReportLab bundled/embedded fonts and customer OS font embedding terms",
