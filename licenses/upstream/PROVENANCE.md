@@ -30,7 +30,7 @@ Authenticode status are recorded independently by CI.
 | File | Official upstream reference | Interpretation |
 |---|---|---|
 | OpenSSL-3.x-LICENSE.txt | https://github.com/openssl/openssl/blob/openssl-3.0/LICENSE.txt | Apache-2.0 template for OpenSSL 3.x; exact bundled DLL patch version must be recorded |
-| libffi-3.4.6-LICENSE | https://github.com/libffi/libffi/blob/v3.4.6/LICENSE | MIT-like libffi terms; a filename libffi-8.dll does not prove version 3.4.6 |
+| libffi-3.4.4-LICENSE | https://github.com/libffi/libffi/blob/v3.4.4/LICENSE | MIT-like libffi terms; a filename libffi-8.dll does not prove version 3.4.6 |
 | zlib-1.3.1-LICENSE | https://github.com/madler/zlib/blob/v1.3.1/LICENSE | zlib terms; actual bundled DLL's patch/version is independently checked |
 
 SQLite is different: the deliverable SQLite library is expressly dedicated to

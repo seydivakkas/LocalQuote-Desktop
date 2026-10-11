@@ -103,7 +103,7 @@ def stage_reference_licenses(bundle: Path, findings: list) -> list[dict]:
     upstream=Path(__file__).resolve().parents[1] / "licenses" / "upstream"
     mapping={
         "OpenSSL": "OpenSSL-3.x-LICENSE.txt",
-        "libffi": "libffi-3.4.6-LICENSE",
+        "libffi": "libffi-3.4.4-LICENSE",
         "zlib": "zlib-1.3.1-LICENSE",
     }
     result=[]
