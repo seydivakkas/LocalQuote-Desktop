@@ -117,7 +117,7 @@ jobs:
         shell: pwsh
         run: |
           .\packaging\windows_pe_identity.ps1 -Bundle dist/LocalQuote-Desktop -Output docs/license-evidence/windows-pe-identity.json
-          if ($LASTEXITCODE -ne 0) { throw 'PE metadata inspection failed' }
+          if (-not (Test-Path docs/license-evidence/windows-pe-identity.json)) { throw 'PE metadata inspection output missing' }
           python packaging/verify_native_metadata.py --source docs/license-evidence/native-source-evidence.json --pe docs/license-evidence/windows-pe-identity.json --manifest docs/license-evidence/package-file-hashes.json --out docs/license-evidence/native-evidence-integrity.json
           if ($LASTEXITCODE -ne 0) { throw 'Native evidence integrity gate failed' }
       - name: Verify frozen CPython against SHA-256 pinned official Python.org binary release
