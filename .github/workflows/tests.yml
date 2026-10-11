@@ -35,7 +35,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.15'
+      - name: Checkout pinned Pillow 12.3.0 source notices
+        uses: actions/checkout@v4
+        with:
+          repository: python-pillow/Pillow
+          ref: bb1d8e8ab8d29048624d96e3ee53cecf7c13d13d
+          path: .third-party/Pillow
+          sparse-checkout: wheels/dependency_licenses
+          persist-credentials: false
       - name: Download exact Windows runtime wheels and generate transient hash lock
         shell: pwsh
         run: |
@@ -52,6 +60,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Build wheel download failed' }
           python packaging/build_wheel_lock.py --wheelhouse docs/license-evidence/build-wheelhouse --out docs/license-evidence/build-hashed.txt --manifest docs/license-evidence/build-wheel-provenance.json
           if ($LASTEXITCODE -ne 0) { throw 'Build wheel lock failed' }
+      - name: Retain exact build-tool and vendored license files
+        shell: pwsh
+        run: |
+          python packaging/build_tool_license_evidence.py --wheelhouse docs/license-evidence/build-wheelhouse --manifest docs/license-evidence/build-wheel-provenance.json --output docs/license-evidence/build-licenses
+          if ($LASTEXITCODE -ne 0) { throw 'Build dependency notices missing' }
       - name: Build
         shell: pwsh
         run: .\packaging\build_windows.ps1
@@ -84,12 +97,34 @@ jobs:
         run: |
           python packaging/wheel_native_match.py --bundle dist/LocalQuote-Desktop --wheelhouse docs/license-evidence/wheelhouse --out docs/license-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Native wheel identity gate failed' }
+      - name: Preserve Pillow build codec license references in portable package
+        shell: pwsh
+        run: |
+          python packaging/pillow_dependency_notices.py --source .third-party/Pillow/wheels/dependency_licenses --bundle dist/LocalQuote-Desktop --output docs/license-evidence/pillow-upstream-dependency-notices.json
+          if ($LASTEXITCODE -ne 0) { throw 'Pillow codec source notices missing' }
       - name: Collect native DLL, Python/Tcl/Tk notices and hash-verified preview ZIP
         shell: pwsh
         run: |
           python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output docs/license-evidence --commit "$env:GITHUB_SHA" --wheel-match docs/license-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Native evidence generation failed' }
           python -c "import json; p=json.load(open('docs/license-evidence/native-components.json',encoding='utf-8')); print('Release:',p['release_decision'],'Unresolved:',p['blocking_findings']); assert p['release_decision']=='HOLD'"
+      - name: Capture installed-source native bytes and actual runtime versions
+        shell: pwsh
+        run: |
+          python packaging/native_source_evidence.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --system-root "$env:SystemRoot" --wheel-match docs/license-evidence/native-wheel-matches.json --output docs/license-evidence/native-source-evidence.json
+          if ($LASTEXITCODE -ne 0) { throw 'Native installed-source inspection failed' }
+      - name: Capture all packaged PE file versions and Authenticode metadata
+        shell: pwsh
+        run: |
+          .\packaging\windows_pe_identity.ps1 -Bundle dist/LocalQuote-Desktop -Output docs/license-evidence/windows-pe-identity.json
+          if (-not (Test-Path docs/license-evidence/windows-pe-identity.json)) { throw 'PE metadata inspection output missing' }
+          python packaging/verify_native_metadata.py --source docs/license-evidence/native-source-evidence.json --pe docs/license-evidence/windows-pe-identity.json --manifest docs/license-evidence/package-file-hashes.json --out docs/license-evidence/native-evidence-integrity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Native evidence integrity gate failed' }
+      - name: Verify frozen CPython against SHA-256 pinned official Python.org binary release
+        shell: pwsh
+        run: |
+          python packaging/official_python_attestation.py --bundle dist/LocalQuote-Desktop --output docs/license-evidence/official-python-3.13.15.json
+          if ($LASTEXITCODE -ne 0) { throw 'Official CPython binary attestation failed' }
       - name: Independently verify packaged ZIP against published SHA-256 manifests
         shell: pwsh
         run: |
@@ -121,7 +156,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13.15'
+      - name: Checkout identical pinned Pillow source notices
+        uses: actions/checkout@v4
+        with:
+          repository: python-pillow/Pillow
+          ref: bb1d8e8ab8d29048624d96e3ee53cecf7c13d13d
+          path: .third-party/Pillow
+          sparse-checkout: wheels/dependency_licenses
+          persist-credentials: false
       - name: Download first-build evidence from independent job
         uses: actions/download-artifact@v4
         with:
@@ -154,6 +197,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Second license notice staging failed' }
           python packaging/wheel_native_match.py --bundle dist/LocalQuote-Desktop --wheelhouse docs/license-evidence/wheelhouse --out second-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Second mypyc wheel identity failed' }
+          python packaging/pillow_dependency_notices.py --source .third-party/Pillow/wheels/dependency_licenses --bundle dist/LocalQuote-Desktop --output second-evidence/pillow-upstream-dependency-notices.json
+          if ($LASTEXITCODE -ne 0) { throw 'Second Pillow source notice stage failed' }
           python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output second-evidence --commit "$env:GITHUB_SHA" --wheel-match second-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Second native inventory failed' }
           python packaging/compare_builds.py --first first-evidence/package-file-hashes.json --second second-evidence/package-file-hashes.json --out second-evidence/build-comparison.json
