@@ -36,6 +36,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13.15'
+      - name: Checkout pinned Pillow 12.3.0 source notices
+        uses: actions/checkout@v4
+        with:
+          repository: python-pillow/Pillow
+          ref: bb1d8e8ab8d29048624d96e3ee53cecf7c13d13d
+          path: .third-party/Pillow
+          sparse-checkout: wheels/dependency_licenses
+          persist-credentials: false
       - name: Download exact Windows runtime wheels and generate transient hash lock
         shell: pwsh
         run: |
@@ -89,6 +97,11 @@ jobs:
         run: |
           python packaging/wheel_native_match.py --bundle dist/LocalQuote-Desktop --wheelhouse docs/license-evidence/wheelhouse --out docs/license-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Native wheel identity gate failed' }
+      - name: Preserve Pillow build codec license references in portable package
+        shell: pwsh
+        run: |
+          python packaging/pillow_dependency_notices.py --source .third-party/Pillow/wheels/dependency_licenses --bundle dist/LocalQuote-Desktop --output docs/license-evidence/pillow-upstream-dependency-notices.json
+          if ($LASTEXITCODE -ne 0) { throw 'Pillow codec source notices missing' }
       - name: Collect native DLL, Python/Tcl/Tk notices and hash-verified preview ZIP
         shell: pwsh
         run: |
@@ -144,6 +157,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13.15'
+      - name: Checkout identical pinned Pillow source notices
+        uses: actions/checkout@v4
+        with:
+          repository: python-pillow/Pillow
+          ref: bb1d8e8ab8d29048624d96e3ee53cecf7c13d13d
+          path: .third-party/Pillow
+          sparse-checkout: wheels/dependency_licenses
+          persist-credentials: false
       - name: Download first-build evidence from independent job
         uses: actions/download-artifact@v4
         with:
@@ -176,6 +197,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Second license notice staging failed' }
           python packaging/wheel_native_match.py --bundle dist/LocalQuote-Desktop --wheelhouse docs/license-evidence/wheelhouse --out second-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Second mypyc wheel identity failed' }
+          python packaging/pillow_dependency_notices.py --source .third-party/Pillow/wheels/dependency_licenses --bundle dist/LocalQuote-Desktop --output second-evidence/pillow-upstream-dependency-notices.json
+          if ($LASTEXITCODE -ne 0) { throw 'Second Pillow source notice stage failed' }
           python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop --python-home "$env:pythonLocation" --output second-evidence --commit "$env:GITHUB_SHA" --wheel-match second-evidence/native-wheel-matches.json
           if ($LASTEXITCODE -ne 0) { throw 'Second native inventory failed' }
           python packaging/compare_builds.py --first first-evidence/package-file-hashes.json --second second-evidence/package-file-hashes.json --out second-evidence/build-comparison.json
