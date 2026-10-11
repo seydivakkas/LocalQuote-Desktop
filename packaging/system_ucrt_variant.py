@@ -52,7 +52,7 @@ def make(original:Path, output:Path, report:Path, *,
         raise ValueError("Expected app-local UCRT payload missing")
     if len(removed)<10:
         raise ValueError("Unexpectedly small API-set/UCRT list")
-    if not any(p.endswith("/vcruntime140.dll") for p in before):
+    if not any(p.lower().endswith("/vcruntime140.dll") for p in before):
         raise ValueError("Original VC runtime DLL not found; inspect baseline")
     shutil.copytree(original,output)
     for rel in removed:
@@ -75,7 +75,7 @@ def make(original:Path, output:Path, report:Path, *,
         "unexpected_added_or_changed_files":changed,
         "original_exe_sha256":before["LocalQuote-Desktop.exe"]["sha256"],
         "variant_exe_sha256":after["LocalQuote-Desktop.exe"]["sha256"],
-        "remaining_vcruntime_paths":[p for p in after if p.lower().endswith("vcruntime140.dll")],
+        "remaining_vcruntime_paths":[p for p in after if p.lower().endswith("/vcruntime140.dll")],
         "system_ucrt_available":True,
         "system_ucrt_source":str(system_ucrt),
         "system_ucrt_sha256":sha(system_ucrt),
