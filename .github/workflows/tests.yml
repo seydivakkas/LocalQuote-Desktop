@@ -130,6 +130,25 @@ jobs:
         run: |
           python packaging/verify_preview.py --zip docs/license-evidence/LocalQuote-Windows-preview-integrity.zip --hash docs/license-evidence/archive-sha256.txt --manifest docs/license-evidence/package-file-hashes.json
           if ($LASTEXITCODE -ne 0) { throw 'Preview hash verification failed' }
+      - name: Construct Windows 10/11 OS-UCRT candidate without touching baseline
+        shell: pwsh
+        run: |
+          python packaging/system_ucrt_variant.py --original dist/LocalQuote-Desktop --variant dist/LocalQuote-Desktop-system-ucrt --report docs/license-evidence/system-ucrt-variant.json
+          if ($LASTEXITCODE -ne 0) { throw 'OS-UCRT candidate creation failed' }
+          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop-system-ucrt --python-home "$env:pythonLocation" --output docs/license-evidence/system-ucrt-folder --commit "$env:GITHUB_SHA" --wheel-match docs/license-evidence/native-wheel-matches.json
+          if ($LASTEXITCODE -ne 0) { throw 'OS-UCRT variant integrity evidence failed' }
+          python packaging/verify_preview.py --zip docs/license-evidence/system-ucrt-folder/LocalQuote-Windows-preview-integrity.zip --hash docs/license-evidence/system-ucrt-folder/archive-sha256.txt --manifest docs/license-evidence/system-ucrt-folder/package-file-hashes.json
+          if ($LASTEXITCODE -ne 0) { throw 'OS-UCRT variant integrity check failed' }
+      - name: Run engineering-only synthetic EXE/PDF/SQLite/backup validation on OS-UCRT variant
+        shell: pwsh
+        run: |
+          python packaging/windows_ci_probe.py dist/LocalQuote-Desktop-system-ucrt/LocalQuote-Desktop.exe docs/license-evidence/system-ucrt-windows-ci-proof.json
+          if ($LASTEXITCODE -ne 0) { throw 'OS-UCRT candidate packaged runtime failed' }
+      - name: Produce per-codec notice coverage and Microsoft REDIST review matrix
+        shell: pwsh
+        run: |
+          python packaging/codec_redist_review.py --native docs/license-evidence/native-source-evidence.json --notices docs/license-evidence/pillow-upstream-dependency-notices.json --variant docs/license-evidence/system-ucrt-variant.json --output docs/license-evidence/codec-redist-review.json
+          if ($LASTEXITCODE -ne 0) { throw 'Codec notice coverage or VC-runtime review gate failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -137,6 +156,13 @@ jobs:
           path: docs/license-evidence/
           retention-days: 30
           if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: LocalQuote-Win10Plus-SystemUCRT-ENGINEERING-ONLY
+          path: dist/LocalQuote-Desktop-system-ucrt/
+          retention-days: 7
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: LocalQuote-Windows-CI-Evidence
@@ -203,11 +229,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Second native inventory failed' }
           python packaging/compare_builds.py --first first-evidence/package-file-hashes.json --second second-evidence/package-file-hashes.json --out second-evidence/build-comparison.json
           if ($LASTEXITCODE -ne 0) { throw 'Non-reproducible Windows build: manifest differences found' }
+          python packaging/system_ucrt_variant.py --original dist/LocalQuote-Desktop --variant dist/LocalQuote-Desktop-system-ucrt --report second-evidence/system-ucrt-variant.json
+          if ($LASTEXITCODE -ne 0) { throw 'Second OS-UCRT candidate creation failed' }
+          python packaging/native_provenance.py --bundle dist/LocalQuote-Desktop-system-ucrt --python-home "$env:pythonLocation" --output second-evidence/system-ucrt-folder --commit "$env:GITHUB_SHA" --wheel-match second-evidence/native-wheel-matches.json
+          if ($LASTEXITCODE -ne 0) { throw 'Second OS-UCRT candidate evidence failed' }
+          python packaging/compare_builds.py --first first-evidence/system-ucrt-folder/package-file-hashes.json --second second-evidence/system-ucrt-folder/package-file-hashes.json --out second-evidence/system-ucrt-build-comparison.json
+          if ($LASTEXITCODE -ne 0) { throw 'OS-UCRT variant differs between Windows runners' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: LocalQuote-P0-04-Independent-Rebuild
           path: |
             second-evidence/build-comparison.json
+            second-evidence/system-ucrt-build-comparison.json
+            second-evidence/system-ucrt-variant.json
             second-evidence/package-file-hashes.json
           retention-days: 30
