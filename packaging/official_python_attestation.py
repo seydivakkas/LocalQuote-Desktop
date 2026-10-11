@@ -13,6 +13,18 @@ OFFICIAL_SHA256="d1f04d990aee1253d8569e8e5104e30fa9f5fa830899f14843448872d936a2c
 
 def sha(data:bytes)->str:return hashlib.sha256(data).hexdigest()
 
+def pe_fixed_version(raw:bytes) -> str | None:
+    """Read PE fixed FILEVERSION without executing a DLL."""
+    try:
+        import pefile
+        pe=pefile.PE(data=raw,fast_load=True)
+        pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]])
+        v=pe.VS_FIXEDFILEINFO[0]
+        return ".".join(str(n) for n in (v.FileVersionMS>>16, v.FileVersionMS & 0xffff,
+                                             v.FileVersionLS>>16, v.FileVersionLS & 0xffff))
+    except (ImportError,AttributeError,IndexError,ValueError,OSError):
+        return None
+
 def compare(package:Path,bundle:Path,output:Path,*,expected_sha:str=OFFICIAL_SHA256)->dict:
     package_hash=sha(package.read_bytes())
     if package_hash.lower()!=expected_sha.lower():
@@ -24,7 +36,7 @@ def compare(package:Path,bundle:Path,output:Path,*,expected_sha:str=OFFICIAL_SHA
         for entry in z.namelist():
             name=Path(entry).name.casefold()
             if name and name.endswith((".dll",".pyd",".exe")):
-                inside.setdefault(name,[]).append({"member":entry,"sha256":sha(z.read(entry))})
+                inside.setdefault(name,[]).append({"member":entry,"sha256":sha(z.read(entry)),"pe_file_version":pe_fixed_version(z.read(entry))})
         for binary in files:
             basename=binary.name.casefold()
             if basename not in inside: continue
@@ -32,7 +44,7 @@ def compare(package:Path,bundle:Path,output:Path,*,expected_sha:str=OFFICIAL_SHA
             candidates=inside[basename]
             good=[x for x in candidates if x["sha256"]==frozen_sha]
             compare_list.append({"frozen_path":binary.relative_to(bundle).as_posix(),
-                                 "sha256":frozen_sha,"official_members":candidates,
+                                 "sha256":frozen_sha,"frozen_pe_file_version":pe_fixed_version(binary.read_bytes()),"official_members":candidates,
                                  "byte_identical_to_official":bool(good)})
     report={"schema":"localquote-official-python-binary-attestation-v1",
             "official_release":"CPython 3.13.15 x64 embeddable",
