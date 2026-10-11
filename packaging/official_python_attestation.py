@@ -17,12 +17,15 @@ def pe_fixed_version(raw:bytes) -> str | None:
     """Read PE fixed FILEVERSION without executing a DLL."""
     try:
         import pefile
+    except ImportError:
+        return None
+    try:
         pe=pefile.PE(data=raw,fast_load=True)
         pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]])
         v=pe.VS_FIXEDFILEINFO[0]
         return ".".join(str(n) for n in (v.FileVersionMS>>16, v.FileVersionMS & 0xffff,
                                              v.FileVersionLS>>16, v.FileVersionLS & 0xffff))
-    except (ImportError,AttributeError,IndexError,ValueError,OSError):
+    except (pefile.PEFormatError,AttributeError,IndexError,ValueError,OSError):
         return None
 
 def compare(package:Path,bundle:Path,output:Path,*,expected_sha:str=OFFICIAL_SHA256)->dict:
